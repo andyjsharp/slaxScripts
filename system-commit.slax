@@ -1,0 +1,289 @@
+/*
+ * Filename      : system-commit.slax
+ * Author        : Andrew Sharp, asharp@juniper.net
+ * Platform      : Junos Space
+ * Release       : 13.x, 14.x
+ * Version       : 1.00
+ * 
+ * Description   : Local script to display a table view based on
+ * the show system commit command.  In addition to which it is 
+ * possible to view the configuration in stanza format for each 
+ * rollback(s) present, or display a comparison against the 
+ * previous rollback.
+ * 
+ * Multiple devices can be selected; however performance is slow
+ * when processing devices with a large commit history.
+ * 
+ * Notes:
+ * This script can be executed only from the Device Management or
+ * View Active Configuration when selecting a device.
+ *
+ * The promoted menu item "Commit History" is only available in 
+ * Junos Space 13.3 and higher, it requires the Advanced Xpath
+ * Processing to be enabled (Modify Network Management Platform 
+ * Settings for CLIConfiglets), and is only enabled when a single
+ * device is selected from the Device Management ILP.
+ *
+ */
+version 1.1;
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ns str = "http://exslt.org/strings";
+ns jspace = "http://jspace-utils/asharp@juniper.net";
+ns func extension = "http://exslt.org/functions";
+ns jppc = "http://xml.juniper.net/jppc";
+
+import "../import/junos.xsl";
+
+/***************************/
+/* Junos Space Annotations */
+/***************************/
+/* @CONTEXT = "/device" */
+/* @NAME = "Commit History" */
+/* @DESCRIPTION = "System Commit History" */
+/* @ISLOCAL = "true" */
+/* @PASSDEVICECREDENTIALS = "true" */
+/* @EXECUTIONTYPE = "GROUPEDEXECUTION" */
+/* @PROMOTE = "Yes" */
+
+param $CONTEXT;
+
+/* global variables */
+var $colgroup = <colgroup> {
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+  <col width="10%">;
+}
+
+match / {
+  <op-script-results> {
+    <output> {
+      /* identify selected devices */
+      var $devices = jspace:credentials();
+
+      /* only display if devices are available */
+      if ($devices) {
+        /* create html output */
+        <html> {
+          <head> {
+            <style type="text/css"> {
+              expr "body { font-family: Verdana, Georgia, Arial, sans-serif;font-size: 12px; color:#000; border-style: solid; border-color: transparent; background-color: transparent }";
+              expr "td { font-family: Verdana, Georgia, Arial, sans-serif; font-size: 12px; color:#000; word-wrap: break-word }";
+              expr "p { font-family: Verdana, Georgia, Arial, sans-serif; font-size: 12px; color:#000 }";
+              expr "table { font-size: 0.75em;border-collapse: collapse;width: 99%;table-layout: fixed}";
+              expr "#tableheader { font-weight: bolder; text-align: left; background-color: #7592A9; color: #fff }";
+              expr "#celltitle { font-weight: bolder }";
+              expr "#celltitleright { text-align: right; padding: 5px; font-weight: bolder }";
+              expr "#configlines { font: 100%/1.5 Courier; font-family: \"Courier New\", Courier, monospace; white-space: pre-wrap; text-align: left; background-image: -webkit-linear-gradient(aliceblue 50%, white 50%); background-image: linear-gradient(aliceblue 50%, white 50%); background-size: 100% 3em; margin: 0 auto; width: 100% }";
+            }
+            uexpr jspace:jscript-toggle("Show","Hide");
+          }
+          <body> {
+            <table border="1"> {
+              copy-of $colgroup;
+              <tr> {
+                <td id="celltitle"> "Seq. No.";
+                <td id="celltitle"> "Username";
+                <td id="celltitle"> "Client";
+                <td id="celltitle" colspan="2"> "Date-Time";
+                <td id="celltitle" colspan="3"> "Log";
+                <td id="celltitle"> "Config";
+                <td id="celltitle"> "Compare";
+              }
+            }
+            for-each ($devices/device) {
+              var $host = host;
+              <table border="1"> {
+                copy-of $colgroup;
+                <tr> {
+                  <td colspan="10" id="tableheader"> host _ " [" _ target _ "]";
+                }
+              }
+              var $rpc = <get-commit-information>;
+
+              var $conn = jppc:open-session( target, user, passwd );
+              var $results = jcs:execute($conn,$rpc);
+              for-each ($results/commit-history) {
+                <table border="1"> {
+                  copy-of $colgroup;
+                  <tr> {
+                    <td> sequence-number;
+                    <td> user;
+                    <td> client;
+                    <td colspan="2"> date-time;
+                    <td colspan="3"> log;
+                    /* configuration toggle */
+                    <td> {
+                      uexpr "<a href=\"javascript:resultToggle('";
+                      expr $host _ "-cfg-" _ position() _ "-" _ "tag";
+                      uexpr "','";
+                      expr $host _ "-cfg-" _ position();
+                      uexpr "');\" id=\"";
+                      expr $host _ "-cfg-" _ position() _ "-" _ "tag";
+                      uexpr "\">Show</a>";
+                    }
+                    /* compare toggle */
+                    <td> {
+                      /* avoid comparing the last entry */
+                      if (position() != last()) {
+                        uexpr "<a href=\"javascript:resultToggle('";
+                        expr $host _ "-cmp-" _ position() _ "-" _ "tag";
+                        uexpr "','";
+                        expr $host _ "-cmp-" _ position();
+                        uexpr "');\" id=\"";
+                        expr $host _ "-cmp-" _ position() _ "-" _ "tag";
+                        uexpr "\">Show</a>";
+                      } else {
+                        expr "n/a";
+                      }
+                    }
+                  }
+                }
+                /* get configuration in stanza format */
+                var $rollback-rpc = <get-rollback-information> {
+                  <rollback> sequence-number;
+                  <format> "text";
+                }
+                var $rollback = jcs:execute($conn,$rollback-rpc);
+
+                /* display configuration */
+                uexpr "<div id=\"";
+                expr $host _ "-cfg-" _ position();
+                uexpr "\" style=\"display: none\">";
+                <p id="configlines"> {
+                  uexpr "<b>Configuration</b>";
+                  uexpr $rollback/configuration-information/configuration-output;
+                  uexpr "<br>";
+                }
+                uexpr "</div>";
+
+                /* get compare statement */
+                var $rollback-compare-rpc = <get-rollback-information> {
+                  <rollback> sequence-number;
+                  <compare> sequence-number + 1;
+                }
+                var $rollback-compare = jcs:execute($conn,$rollback-compare-rpc);
+
+                /* display compare statement */
+                uexpr "<div id=\"";
+                expr $host _ "-cmp-" _ position();
+                uexpr "\" style=\"display: none\">";
+                <p id="configlines"> {
+                  uexpr "<b>Comparison between rollback " _ sequence-number _ " and rollback " _ sequence-number + 1 _ "</b>";
+                  uexpr $rollback-compare/configuration-information/configuration-output;
+                  uexpr "<br>";
+                }
+                uexpr "</div>";
+              } /* commit history */
+            } /* device loop */
+            /* all devices processed - close connetion */
+            expr jcs:close($conn);
+          } /* body */
+        } /* html */
+      } else {
+        expr "No devices selected, please select a device from the Device Management ILP\n(Initial Landing Page).\n";
+        expr "This script is not designed to work from within the Scripts ILP.";
+      }
+    } /* output */
+  }
+}
+
+/* parse device credentials */
+<func:function name="jspace:credentials"> {
+  if( $CONTEXT ) {
+    var $splitCredentials = str:split( $credentials, "\\;" );
+    var $targets := {
+      for-each ( $splitCredentials ) {
+        var $splitCredential = str:split( ., "\\:" );
+        var $user-target = str:split($splitCredential[1], "\@");
+        var $host = substring-before( substring-after( $deviceipmap, substring-after( $splitCredential[1], "@" ) _ "\":\"" ), "\"" );
+        <device> {
+          /* ip address */
+          <target> {
+            expr $user-target[2];
+          }
+          <user> {
+            expr $user-target[1];
+          }
+          <passwd> {
+            expr $splitCredential[2];
+          }
+          /* hostname */
+          <host> {
+            expr $host;
+          }
+        }
+      }
+    }
+    <func:result select="$targets">;
+  } else {
+    <func:result select="false()">;
+  }
+}
+
+/* create toggle function with show/hide params */
+<func:function name="jspace:jscript-toggle">
+{
+  param $show;
+  param $hide;
+  var $jscript = {
+    uexpr "<script type=\"text/javascript\">
+      function resultToggle(tag,div) {
+        var ele = document.getElementById(div);
+        var text = document.getElementById(tag);
+        if(ele.style.display == \"block\") {
+          ele.style.display = \"none\";
+          text.innerHTML = \"" _ $show _ "\";
+        } else {
+          ele.style.display = \"block\";
+          text.innerHTML = \"" _ $hide _ "\";
+        }
+      }
+    </script>";
+  }
+  <func:result select=" $jscript ">;
+}
+
+
+/* ---------------------------------------------------- */
+/* this function is used to try netconf as a protocol   */
+/* if the session didn't work the first time            */
+/* ---------------------------------------------------- */
+<func:function name="jppc:open-session">
+{
+  param $target;
+  param $login;
+  param $pwd;
+
+  var $session-opt-default := {
+    <username> $login;
+    <password> $pwd;
+    <port> "22";
+  }
+
+  var $session-opt-netconf := {
+    <method> "netconf";
+    <username> $login;
+    <password> $pwd;
+    <port> "22";
+  }
+
+  var $jnx-default = jcs:open( $target, $session-opt-default );
+
+  if(not( $jnx-default )) {
+    var $jnx-netconf = jcs:open( $target, $session-opt-netconf );
+    <func:result select="$jnx-netconf">;
+  } else {
+    <func:result select="$jnx-default">;
+  }
+}
+
