@@ -25,10 +25,14 @@ match / {
         }
         <body> {
 
-          <div> {
+<table align="center"> {
+  <tr valign="top"> {
+    <td style="width: 50%;"> {
+
+          <div style="width: 400px"> {
             var $myDataP = "['Type', 'Sessions'],['DHCP',11],['PPPOE',2],['VLAN',2],['ESSMD',2],['Others',7]";
             var $optionsP = "title: 'Subscriber Sessions',is3D: true, forceIFrame: true,";
-            var $myHTML = '<div id="piechart" style="width: 100%; height: 100%;">';
+            var $myHTML = '<div id="piechart" style="width: 400px; height: 220px;">';
             <script type="text/javascript"> {
               uexpr "var iframe = document.createElement('iframe');";
               uexpr "var html = '<head>";
@@ -39,26 +43,31 @@ match / {
               uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
             }
           }
+    }
+    <td style="width: 50%;"> {
 
-          <div> {
+          <div style="width: 400px"> {
             var $myDataP2 = "['Type', 'Sessions'],['DHCP',11],['PPPOE',2],['VLAN',2],['ESSMD',2],['Others',7]";
-            var $optionsP2 = "title: 'Subscriber Sessions',is3D: true, forceIFrame: true,";
-            var $myHTML2 = '<div id="piechart2" style="width: 100%; height: 100%;">';
+            var $optionsP2 = "";
+            var $myHTML2 = '<div id="table2" style="width: 400px; height: 220px;">';
             <script type="text/javascript"> {
               uexpr "var iframe2 = document.createElement('iframe2');";
               uexpr "var html2 = '<head>";
-              copy-of jspace:pie-chart($myDataP2,$optionsP2,"piechart2");
+              copy-of jspace:table($myDataP2,$optionsP2,"table2");
               uexpr "</head><body>" _ $myHTML2 _ "</body>';";
               uexpr "iframe2.src = 'data:text/html;charset=utf-8,' + encodeURI(html2);";
               uexpr "document.body.appendChild(iframe2);";
               uexpr "console.log('iframe2.contentWindow =', iframe2.contentWindow);";
             }
           }
+    }
+  }
+}
 
           <div> {
             var $myDataP3 =  "['Resource', 'Value'],['CPU',85],['RAM',64],['Network',35],['Disk',49]";
             var $optionsP3 = "redFrom: 90, redTo: 100,yellowFrom:75, yellowTo: 90,minorTicks: 5,forceIFRame: true";
-            var $myHTML3 = '<div id="gauge3" style="width: 100%; height: 100%;">';
+            var $myHTML3 = '<div id="gauge3" style="width: 75%; height: 150px;margin: 0 auto;">';
             <script type="text/javascript"> {
               uexpr "var iframe3 = document.createElement('iframe3');";
               uexpr "var html3 = '<head>";
@@ -82,6 +91,22 @@ match / {
               uexpr "iframe4.src = 'data:text/html;charset=utf-8,' + encodeURI(html4);";
               uexpr "document.body.appendChild(iframe4);";
               uexpr "console.log('iframe4.contentWindow =', iframe4.contentWindow);";
+            }
+          }
+
+
+          <div> {
+            var $myDataP5 = "['Interface','Speed'],['ge-0/0/0',1000000000],['ge-0/0/1',1000000000],['ge-0/0/2',1000000000],['ge-0/0/3',1000000000],['xe-0/0/4',10000000000]";
+            var $optionsP5 = "title: 'Interface Speed'";
+            var $myHTML5 = '<div id="histogram" style="width: 100%; height: 75%;">';
+            <script type="text/javascript"> {
+              uexpr "var iframe5 = document.createElement('iframe5');";
+              uexpr "var html5 = '<head>";
+              copy-of jspace:histogram($myDataP5,$optionsP5,"histogram");
+              uexpr "</head><body>" _ $myHTML5 _ "</body>';";
+              uexpr "iframe5.src = 'data:text/html;charset=utf-8,' + encodeURI(html5);";
+              uexpr "document.body.appendChild(iframe5);";
+              uexpr "console.log('iframe5.contentWindow =', iframe5.contentWindow);";
             }
           }
 
@@ -162,6 +187,58 @@ match / {
         uexpr $options;
         uexpr "  };";
         uexpr "  var chart = new google.visualization.ColumnChart(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+/* histogram */
+<func:function name="jspace:histogram">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["corechart"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.Histogram(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+/* table */
+<func:function name="jspace:table">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["table"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.Table(document.getElementById('" _ $div _ "'));";
         uexpr "  chart.draw(data, options);";
       uexpr "}";
     }
