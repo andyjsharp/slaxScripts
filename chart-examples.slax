@@ -1,0 +1,285 @@
+version 1.1;
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ns str = "http://exslt.org/strings";
+ns jspace = "http://jspace-utils/asharp@juniper.net";
+ns func extension = "http://exslt.org/functions";
+ns jppc = "http://xml.juniper.net/jppc";
+
+import "../import/junos.xsl";
+
+/* @CONTEXT = "/device" */
+/* @NAME = "chart examples" */
+/* @DESCRIPTION = "chart examples" */
+/* @ISLOCAL = "true" */
+/* @PROMOTE = "yes" */
+
+/* Some examples using Google Charts */
+/* https://google-developers.appspot.com/chart/interactive/docs/index */
+
+match / {
+  <op-script-results> {
+    <output> {
+      <html> {
+        <head> {
+          /* Load the AJAX API */
+          uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+        }
+        <body> {
+          <table align="center"> {
+            <tr valign="top"> {
+              <td style="width: 50%;"> {
+                <div style="width: 400px"> {
+                  /* perform whatever steps are required to generate data in a suitable format */
+                  var $pieData = "['Type', 'Sessions'],['DHCP',11],['PPPOE',2],['VLAN',2],['ESSMD',2],['Others',7]";
+                  /* provide additional options to google chart  */
+                  var $pieOptions = "title: 'Subscriber Sessions',is3D: true, forceIFrame: true,";
+                  /* since the chart will be included within a <div>, define the style attributes for the <div> */
+                  var $pieStyle = "width: 400px; height: 220px;";
+                  /* finally call jspace:drawchart and provide the followin5 parameters */
+                  /*
+                   * chartData    - in a suitable DataTable format.
+                   * chartOptions - optional google chart options
+                   * divId        - the id to be assigned to the div that will contain the chart.
+                   * divStyle     - the style to assign to the div
+                   * chartType    - the chart type table, pie, histogram, column-chart, gauge
+                  */
+                  copy-of jspace:drawchart($pieData,$pieOptions,"pie",$pieStyle,"pie");
+                }
+              }
+              <td style="width: 50%;"> {
+                <div style="width: 400px"> {
+                  var $tableData = "['Type', 'Sessions'],['DHCP',11],['PPPOE',2],['VLAN',2],['ESSMD',2],['Others',7]";
+                  var $tableOptions = "";
+                  var $tableStyle = "width: 400px; height: 220px;";
+                  copy-of jspace:drawchart($tableData,$tableOptions,"table",$tableStyle,"table");
+                }
+              }
+            }
+          }
+          <div> {
+            var $gaugeData = "['Resource', 'Value'],['CPU',85],['RAM',64],['Network',35],['Disk',49]";
+            var $gaugeOptions = "redFrom: 90, redTo: 100,yellowFrom:75, yellowTo: 90,minorTicks: 5,forceIFRame: true";
+            var $gaugeStyle = "width: 75%; height: 150px;margin: 0 auto;";
+            copy-of jspace:drawchart($gaugeData,$gaugeOptions,"gauge",$gaugeStyle,"gauge");
+          }
+          <p> {
+            expr "Column Chart Example";
+          }
+          <div> {
+            var $columnData = "['Routing Engine','RE Temp','CPU Temp'],['RE0',45,55],['RE1',65,34]";
+            var $columnOptions = "title: 'Routing Engine Temperature',hAxis: {title: 'Routing Engine', titleTextStyle: {color: 'red'}},vAxis: {title: 'Temperature (celsius)', titleTextStyle: {color: 'blue'}}";
+            var $columnStyle = "width: 100%; height: 75%;";
+            copy-of jspace:drawchart($columnData,$columnOptions,"column",$columnStyle,"column-chart");
+          }
+          <p> {
+            expr "Histogram Example";
+          }
+          <div> {
+            var $histogramData = "['Dinosaur', 'Length'],
+              ['Acrocanthosaurus (top-spined lizard)', 12.2],
+              ['Albertosaurus (Alberta lizard)', 9.1],
+              ['Allosaurus (other lizard)', 12.2],
+              ['Apatosaurus (deceptive lizard)', 22.9],
+              ['Archaeopteryx (ancient wing)', 0.9],
+              ['Argentinosaurus (Argentina lizard)', 36.6],
+              ['Baryonyx (heavy claws)', 9.1],
+              ['Brachiosaurus (arm lizard)', 30.5],
+              ['Ceratosaurus (horned lizard)', 6.1],
+              ['Coelophysis (hollow form)', 2.7],
+              ['Compsognathus (elegant jaw)', 0.9],
+              ['Deinonychus (terrible claw)', 2.7],
+              ['Diplodocus (double beam)', 27.1],
+              ['Dromicelomimus (emu mimic)', 3.4],
+              ['Gallimimus (fowl mimic)', 5.5],
+              ['Mamenchisaurus (Mamenchi lizard)', 21.0],
+              ['Megalosaurus (big lizard)', 7.9],
+              ['Microvenator (small hunter)', 1.2],
+              ['Ornithomimus (bird mimic)', 4.6],
+              ['Oviraptor (egg robber)', 1.5],
+              ['Plateosaurus (flat lizard)', 7.9],
+              ['Sauronithoides (narrow-clawed lizard)', 2.0],
+              ['Seismosaurus (tremor lizard)', 45.7],
+              ['Spinosaurus (spiny lizard)', 12.2],
+              ['Supersaurus (super lizard)', 30.5],
+              ['Tyrannosaurus (tyrant lizard)', 15.2],
+              ['Ultrasaurus (ultra lizard)', 30.5],
+              ['Velociraptor (swift robber)', 1.8]";
+            var $histogramOptions = "title: 'Lengths of dinosaurs, in meters',legend: { position: 'none' },";
+            var $histogramStyle = "width: 100%; height: 75%;";
+            copy-of jspace:drawchart($histogramData,$histogramOptions,"histogram",$histogramStyle,"histogram");
+          }
+
+        } /* end of body */
+      } /* end of html */
+    }
+  }
+}
+
+/* pie chart */
+<func:function name="jspace:pie-chart">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["corechart"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.PieChart(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+/* gauge */
+<func:function name="jspace:gauge">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["gauge"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.Gauge(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+/* column chart */
+<func:function name="jspace:column-chart">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["corechart"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.ColumnChart(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+/* histogram */
+<func:function name="jspace:histogram">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["corechart"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.Histogram(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+/* table */
+<func:function name="jspace:table">
+{
+  param $data;
+  param $options;
+  param $div;
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["table"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+        uexpr "  var data = google.visualization.arrayToDataTable([";
+        uexpr $data;
+        uexpr "  ]);";
+        uexpr "  var options = {";
+        uexpr $options;
+        uexpr "  };";
+        uexpr "  var chart = new google.visualization.Table(document.getElementById('" _ $div _ "'));";
+        uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  <func:result select=" $jscript ">;
+}
+
+
+
+/* draw googlechart */
+/* a simple function to help simplify including a google chart */
+<func:function name="jspace:drawchart">
+{
+  param $data;
+  param $options;
+  param $id;
+  param $style;
+  param $type;
+  var $html = '<div id="' _ $id _ '" style="' _ $style _ '">';
+  var $draw = {
+    <script type="text/javascript"> {
+      uexpr "var iframe = document.createElement('iframe');";
+      uexpr "var html = '<head>";
+      if ($type == "table") {
+        copy-of jspace:table($data,$options,$id);
+      } else if ($type == "pie") {
+        copy-of jspace:pie-chart($data,$options,$id);
+      } else if ($type == "histogram") {
+        copy-of jspace:histogram($data,$options,$id);
+      } else if ($type == "gauge") {
+        copy-of jspace:gauge($data,$options,$id);
+      } else if ($type == "column-chart") {
+        copy-of jspace:column-chart($data,$options,$id);
+      }
+      uexpr "</head><body>" _ $html _ "</body>';";
+      uexpr "iframe.src = 'data:text/html;charset=utf-8,' + encodeURI(html);";
+      uexpr "document.body.appendChild(iframe);";
+      uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
+    }
+  }
+  <func:result select=" $draw ">;
+}
