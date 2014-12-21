@@ -51,13 +51,13 @@ match / {
             var $optionsP2 = "";
             var $myHTML2 = '<div id="table2" style="width: 400px; height: 220px;">';
             <script type="text/javascript"> {
-              uexpr "var iframe2 = document.createElement('iframe2');";
-              uexpr "var html2 = '<head>";
+              uexpr "var iframe = document.createElement('iframe');";
+              uexpr "var html = '<head>";
               copy-of jspace:table($myDataP2,$optionsP2,"table2");
               uexpr "</head><body>" _ $myHTML2 _ "</body>';";
-              uexpr "iframe2.src = 'data:text/html;charset=utf-8,' + encodeURI(html2);";
-              uexpr "document.body.appendChild(iframe2);";
-              uexpr "console.log('iframe2.contentWindow =', iframe2.contentWindow);";
+              uexpr "iframe.src = 'data:text/html;charset=utf-8,' + encodeURI(html);";
+              uexpr "document.body.appendChild(iframe);";
+              uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
             }
           }
     }
@@ -69,13 +69,13 @@ match / {
             var $optionsP3 = "redFrom: 90, redTo: 100,yellowFrom:75, yellowTo: 90,minorTicks: 5,forceIFRame: true";
             var $myHTML3 = '<div id="gauge3" style="width: 75%; height: 150px;margin: 0 auto;">';
             <script type="text/javascript"> {
-              uexpr "var iframe3 = document.createElement('iframe3');";
-              uexpr "var html3 = '<head>";
+              uexpr "var iframe = document.createElement('iframe');";
+              uexpr "var html = '<head>";
               copy-of jspace:gauge($myDataP3,$optionsP3,"gauge3");
               uexpr "</head><body>" _ $myHTML3 _ "</body>';";
-              uexpr "iframe3.src = 'data:text/html;charset=utf-8,' + encodeURI(html3);";
-              uexpr "document.body.appendChild(iframe3);";
-              uexpr "console.log('iframe3.contentWindow =', iframe3.contentWindow);";
+              uexpr "iframe.src = 'data:text/html;charset=utf-8,' + encodeURI(html);";
+              uexpr "document.body.appendChild(iframe);";
+              uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
             }
           }
 
@@ -84,29 +84,57 @@ match / {
             var $optionsP4 = "title: 'Routing Engine Temperature',hAxis: {title: 'Routing Engine', titleTextStyle: {color: 'red'}},vAxis: {title: 'Temperature (celsius)', titleTextStyle: {color: 'blue'}}";
             var $myHTML4 = '<div id="colchart" style="width: 100%; height: 75%;">';
             <script type="text/javascript"> {
-              uexpr "var iframe4 = document.createElement('iframe4');";
-              uexpr "var html4 = '<head>";
+              uexpr "var iframe = document.createElement('iframe');";
+              uexpr "var html = '<head>";
               copy-of jspace:column-chart($myDataP4,$optionsP4,"colchart");
               uexpr "</head><body>" _ $myHTML4 _ "</body>';";
-              uexpr "iframe4.src = 'data:text/html;charset=utf-8,' + encodeURI(html4);";
-              uexpr "document.body.appendChild(iframe4);";
-              uexpr "console.log('iframe4.contentWindow =', iframe4.contentWindow);";
+              uexpr "iframe.src = 'data:text/html;charset=utf-8,' + encodeURI(html);";
+              uexpr "document.body.appendChild(iframe);";
+              uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
             }
           }
 
 
           <div> {
-            var $myDataP5 = "['Interface','Speed'],['ge-0/0/0',1000000000],['ge-0/0/1',1000000000],['ge-0/0/2',1000000000],['ge-0/0/3',1000000000],['xe-0/0/4',10000000000]";
-            var $optionsP5 = "title: 'Interface Speed'";
+            var $myDataP5 = "['Dinosaur', 'Length'],
+              ['Acrocanthosaurus (top-spined lizard)', 12.2],
+              ['Albertosaurus (Alberta lizard)', 9.1],
+              ['Allosaurus (other lizard)', 12.2],
+              ['Apatosaurus (deceptive lizard)', 22.9],
+              ['Archaeopteryx (ancient wing)', 0.9],
+              ['Argentinosaurus (Argentina lizard)', 36.6],
+              ['Baryonyx (heavy claws)', 9.1],
+              ['Brachiosaurus (arm lizard)', 30.5],
+              ['Ceratosaurus (horned lizard)', 6.1],
+              ['Coelophysis (hollow form)', 2.7],
+              ['Compsognathus (elegant jaw)', 0.9],
+              ['Deinonychus (terrible claw)', 2.7],
+              ['Diplodocus (double beam)', 27.1],
+              ['Dromicelomimus (emu mimic)', 3.4],
+              ['Gallimimus (fowl mimic)', 5.5],
+              ['Mamenchisaurus (Mamenchi lizard)', 21.0],
+              ['Megalosaurus (big lizard)', 7.9],
+              ['Microvenator (small hunter)', 1.2],
+              ['Ornithomimus (bird mimic)', 4.6],
+              ['Oviraptor (egg robber)', 1.5],
+              ['Plateosaurus (flat lizard)', 7.9],
+              ['Sauronithoides (narrow-clawed lizard)', 2.0],
+              ['Seismosaurus (tremor lizard)', 45.7],
+              ['Spinosaurus (spiny lizard)', 12.2],
+              ['Supersaurus (super lizard)', 30.5],
+              ['Tyrannosaurus (tyrant lizard)', 15.2],
+              ['Ultrasaurus (ultra lizard)', 30.5],
+              ['Velociraptor (swift robber)', 1.8]";
+            var $optionsP5 = "title: 'Lengths of dinosaurs, in meters',legend: { position: 'none' },";
             var $myHTML5 = '<div id="histogram" style="width: 100%; height: 75%;">';
             <script type="text/javascript"> {
-              uexpr "var iframe5 = document.createElement('iframe5');";
-              uexpr "var html5 = '<head>";
+              uexpr "var iframe = document.createElement('iframe');";
+              uexpr "var html = '<head>";
               copy-of jspace:histogram($myDataP5,$optionsP5,"histogram");
               uexpr "</head><body>" _ $myHTML5 _ "</body>';";
-              uexpr "iframe5.src = 'data:text/html;charset=utf-8,' + encodeURI(html5);";
-              uexpr "document.body.appendChild(iframe5);";
-              uexpr "console.log('iframe5.contentWindow =', iframe5.contentWindow);";
+              uexpr "iframe.src = 'data:text/html;charset=utf-8,' + encodeURI(html);";
+              uexpr "document.body.appendChild(iframe);";
+              uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
             }
           }
 
