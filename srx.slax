@@ -1,0 +1,507 @@
+version 1.2;
+
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ns str = "http://exslt.org/strings";
+ns jspace = "http://jspace-utils/asharp@juniper.net";
+ns func extension = "http://exslt.org/functions";
+ns jppc = "http://xml.juniper.net/jppc";
+
+
+import "../import/junos.xsl";
+
+/* @CONTEXT = "/device[system-information/os-name="junos-es"]" */
+/* @NAME = "SRX Chassis Cluster Status" */
+/* @DESCRIPTION = "SRX Chassis Cluster Status" */
+/* @ISLOCAL = "true" */
+/* @EXECUTIONTYPE = "SINGLEEXECUTION" */
+/* @PROMOTE = "Yes" */
+
+/*
+ *  Room for improvement.
+ *  1.  Core dumps <get-system-core-dumps>
+ *  2.  Show system commits <get-commit-information>
+ *  3.  Interface Monitoring information
+ *  4.  Show chassis routing-engine <get-route-engine-information>
+ *  5.  Show chassis fpc <get-fpc-information>
+ *  6.  Piechart for show security idp status (Packet, Flow, Session statistics)
+ *  7.  Graph of show security monitoring performance spu <get-performance-spu-information>
+ *  8.  Show security monitoring fpc X
+ *  9.  show chassis cluster statistics (Graph Control Link, hearbeat pkts sent/recv/error)
+ * 10.  show chassis cluster statistics (Graph Fabric Link, child link probes sent/rec)
+ * 11.  list of interfaces and their associated zone.
+ *       - show interfaces | <logical-interface-zone-name>, <allowed-host-inbound-traffic> <inbound-ping>,<inbound-bgp> etc. hst1_trust
+*/
+
+
+var $local = jcs:open();
+
+main <op-script-results> {
+  <output> {
+    if ($local/..//xnm:error) {
+      call rpc_failure($rpc = $connection/.., $message = "Error connecting on mgd on this RE");
+    }
+
+    var $rpc = <get-chassis-cluster-status>;
+    var $results = jcs:execute($local,$rpc);
+    /* Check to make sure that we are running on a cluster */
+    if ($results/..//xnm:error) {
+      call rpc_failure($rpc = $results/.., $message = "Error collecting chassis cluster status");
+    }
+
+    var $rpc-info = <get-chassis-cluster-information>;
+    var $info = jcs:execute($local,$rpc-info);
+    if ($info/..//xnm:error) {
+      call rpc_failure($rpc = $info/.., $message = "Error collecting chassis cluster information");
+    }
+  
+    var $rpc-interfaces = <get-chassis-cluster-interfaces>;
+    var $interfaces = jcs:execute($local,$rpc-interfaces);
+    if ($results/..//xnm:error) {
+      call rpc_failure($rpc = $interfaces/.., $message = "Error collecting chassis cluster interfaces");
+    }
+
+    var $rpc-alarms = <get-alarm-information>;
+    var $alarms = jcs:execute($local,$rpc-alarms);
+
+    if ($alarms/..//xnm:error) {
+      call rpc_failure($rpc = $alarms/.., $message = "Error collecting chassis alarm information");
+    }
+
+    var $rpc-sys-alarms = <get-system-alarm-information>;
+    var $sys-alarms = jcs:execute($local,$rpc-sys-alarms);
+
+    if ($sys-alarms/..//xnm:error) {
+      call rpc_failure($rpc = $sys-alarms/.., $message = "Error collecting system alarm information");
+    }
+
+    var $rpc-info-undoc = {
+        <get-chassis-cluster-information>;
+        <undocumented>;
+    }
+    var $info-undoc = jcs:execute($local,$rpc-info-undoc);
+    if ($info-undoc/..//xnm:error) {
+      call rpc_failure($rpc = info-undoc/.., $message = "Error collecting chassis cluster information undocumented");
+    }
+
+    copy-of $info-undoc;
+
+    expr jcs:close($local);
+
+    <html> {
+      <head> {
+        /* Load the AJAX API */
+        uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+        <style type="text/css"> {
+          expr "body { font-family: Verdana, Georgia, Arial, sans-serif;font-size: 12px;color:#000;border-style: solid;border-color: transparent;background-color: transparent}";
+          expr "p { font-family: Verdana, Georgia, Arial, sans-serif;font-size: 12px;color:#000;}";
+          expr "#celltitle { font-weight: bolder }";
+          expr ".center {text-align: center}";
+          expr ".left {text-align: left;}";
+        }
+      }
+      <body> {
+        /* Chassis Cluster Status */
+        <p id="celltitle"> {
+          expr "Show Chassis Cluster Status for " _ "Cluster Id " _ $results/cluster-id;
+        }
+        var $headerData = {
+          expr "['Monitor Failure Codes','',''],['CS: Cold Sync monitoring','FL: Fabric Connection monitoring','GR: GRES monitoring'],
+                ['HW: Hardware monitoring','IF: Interface monitoring','IP: IP monitoring'],
+                ['LB: Loopback monitoring','MB: Mbuf monitoring','NH: Nexthop monitoring'],
+                ['NP: NPC monitoring','SP: SPU monitoring','SM: Schedule monitoring'],['CF: Config Sync monitoring','','']";
+        }
+        var $headerStyle = "";
+        var $cssHdr = "
+          {'headerRow': '',
+          'tableRow': '',
+          'oddTableRow': '',
+          'selectedTableRow': '',
+          'hoverTableRow': '',
+          'headerCell': '',
+          'tableCell': 'left',
+          'rowNumberCell': ''}
+        ";
+
+        <div> {
+          copy-of jspace:drawchart($headerData,"sort: 'disable',allowHtml: true,cssClassNames: 'cssClassNames'","header",$headerStyle,"table","Table",$cssHdr);
+        }
+
+        var $css = "
+          {'headerRow': '',
+          'tableRow': '',
+          'oddTableRow': '',
+          'selectedTableRow': '',
+          'hoverTableRow': '',
+          'headerCell': '',
+          'tableCell': 'center',
+          'rowNumberCell': ''}
+        ";
+
+        <p>;
+        var $table0 = {
+          expr "['Redundancy Group','Failover Count']";
+          for-each ($results/redundancy-group) {
+            expr ",['" _ redundancy-group-id _ "',";
+            expr "'" _ redundancy-group-failover-count _ "']";
+          }
+        }
+        <div> {
+          copy-of jspace:drawchart($table0,"allowHtml: true","failover","","table","Table",$css);
+        }
+
+        <p>;
+        var $table1 = {
+          expr "['Redundancy Group','Node','Priority','Status','Preempt','Manual Failover','Monitor Failures']";
+          for-each ($results/redundancy-group) {
+            var $device-count = count(device-stats/device-name);
+            mvar $count = 0;
+            while ($count != $device-count) {
+              set $count = $count + 1;
+              expr ",['" _ redundancy-group-id _ "',";
+              expr "'" _ device-stats/device-name[$count] _ "',";
+              expr "'" _ device-stats/device-priority[$count] _ "',";
+              if (device-stats/redundancy-group-status[$count] == "lost") {
+                expr "'" _ device-stats/redundancy-group-status[$count] _ "',";
+              } else if (device-stats/redundancy-group-status[$count] == "primary") {
+                expr "'" _ device-stats/redundancy-group-status[$count] _ "',";
+              } else if (device-stats/redundancy-group-status[$count] == "secondary") {
+                expr "'" _ device-stats/redundancy-group-status[$count] _ "',";
+              } else {
+                expr "'" _ device-stats/redundancy-group-status[$count] _ "',";
+              }
+              expr "'" _ device-stats/preempt[$count] _ "',";
+              expr "'" _ device-stats/failover-mode[$count] _ "',";
+              expr "'" _ device-stats/monitor-failures[$count] _ "']";
+            }
+          }
+        }
+
+        /* formatter code */
+        var $formatter1 = {        
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('primary','secondary','white','forestgreen');";
+          uexpr "formatter.addRange('secondary',null,'white','goldenrod');";
+          uexpr "formatter.addRange('lost',null,'white','red');";
+          uexpr "formatter.format(data, 3);"; /* 4th column */
+        }
+
+        <div> {
+          copy-of jspace:drawchart($table1,"allowHtml: true","redundancy-group","","table","Table",$css,$formatter1);
+        }
+
+        <p>;
+        var $table2 = {
+          expr "['RE Name','Redundancy Group','Redundancy Group Status','Redundancy Group Weight']";
+          for-each ($info/multi-routing-engine-item) {
+            for-each (chassis-cluster-information/chassis-cluster-redundancy-group-information/redundancy-group-list) {
+              expr ",['" _ ../../../re-name _ "',";
+              expr "'" _ redundancy-group-id _ "',";
+              expr "'" _ redundancy-group-status _ "',";
+              expr "'" _ redundancy-group-weight _ "']";
+            }
+          }
+        }
+        /* formatter code */
+        var $formatter2 = {        
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('primary','secondary','white','forestgreen');";
+          uexpr "formatter.addRange('secondary',null,'white','goldenrod');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table2,"allowHtml: true","cluster-information","","table","Table",$css,$formatter2);
+        }
+
+        <p>;
+        var $table3 = {
+          expr "['RE Name','Redundancy Group','Transition Time','From State','To State','Transition Reason']";
+          for-each ($info/multi-routing-engine-item) {
+            for-each (chassis-cluster-information/chassis-cluster-redundancy-group-information/redundancy-group-list) {
+              for-each (redundancy-group-state-transition-record) {
+                expr ",['" _ ../../../../re-name _ "',";
+                expr "'" _ ../redundancy-group-id _ "',";
+                expr "'" _ transition-time _ "',";
+                expr "'" _ from-state _ "',";
+                expr "'" _ to-state _ "',";
+                expr "'" _ transition-reason _ "']";
+              }
+            }
+          }
+        }
+        <div> {
+          copy-of jspace:drawchart($table3,"allowHtml: true","transition-information","","table","Table",$css);
+        }
+        <p>;
+        var $chassis-led = {
+          expr "['RE Name' , 'Current LED Color','Last Change Reason']";
+          for-each ($info/multi-routing-engine-item) {
+            for-each (chassis-cluster-information) {
+              expr ",['" _ ../re-name _ "',";
+              expr "'" _ chassis-cluster-led-information/current-led-color _ "',";
+              expr "'" _ chassis-cluster-led-information/last-change-reason _ "']";
+            }
+          }
+        }
+        var $formatter-led = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Green',null,'white','forestgreen');";
+          uexpr "formatter.addRange('Red',null,'white','red');";
+          uexpr "formatter.format(data, 1);"; /* 2nd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($chassis-led,"allowHtml: true","chassis-led-information","","table","Table",$css,$formatter-led);
+        }
+
+        <p>;
+        var $dp-cp-interface-status = {
+          expr "['Control Plane Status','Data Plane Status'],";
+          expr "['" _ $interfaces/control-interface-status _ "',";
+          expr "'" _ $interfaces/dataplane-interface-status _ "']";
+        }
+        var $formatter-dp-cp = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Up',null,'white','forestgreen');";
+          uexpr "formatter.addRange('Down',null,'white','red');";
+          uexpr "formatter.format(data, 0);"; /* 1st column */
+          uexpr "formatter.format(data, 1);"; /* 2nd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($dp-cp-interface-status,"allowHtml: true","cp-dp-interface-status","","table","Table",$css,$formatter-dp-cp);
+        }
+
+        <p>;
+        var $table4 = {
+          expr "['Index','Control Interface Name','Status','Internal SA Status']";
+          for-each ($interfaces/control-link-interfaces/control-information) {
+            expr ",['" _ control-link-interface-index _ "',";
+            expr "'" _ control-link-interface-name _ "',";
+            expr "'" _ control-link-interface-status _ "',";
+            expr "'" _ control-link-interface-internal-sa-status _ "']";
+          }
+        }
+        /* formatter code */
+        var $formatter4 = {        
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Up',null,'white','forestgreen');";
+          uexpr "formatter.addRange('Down',null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table4,"allowHtml: true","control-interface-status","","table","Table",$css,$formatter4);
+        }
+
+        <p>;
+        var $table5 = {
+          expr "['Index','Dataplane Interface Name','Status']";
+          for-each ($interfaces/dataplane-interfaces/fabric-information) {
+            expr ",['" _ fabric-interface-index _ "',";
+            expr "'" _ fabric-child-interface-name _ "',";
+            expr "'" _ fabric-child-interface-status _ "']";
+          }
+        }
+        /* formatter code */
+        var $formatter5 = {        
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Up   / Up  ',null,'white','forestgreen');";
+          uexpr "formatter.addRange(null,null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table5,"allowHtml: true","dp-interface-status","","table","Table",$css,$formatter5);
+        }
+
+        <p>;
+        var $table6 = {
+          expr "['Redundancy Group','Reth Interface Name','Status']";
+          var $reth-count = count($interfaces/reth/reth-name);
+          mvar $count-reth = 0;
+          while ($count-reth != $reth-count) {
+            set $count-reth = $count-reth + 1;
+            expr ",['" _ $interfaces/reth/redundancy-group-id-for-reth[$count-reth] _ "',";
+            expr "'" _ $interfaces/reth/reth-name[$count-reth] _ "',";
+            expr "'" _ $interfaces/reth/reth-status[$count-reth] _ "']";
+          }
+        }
+        /* formatter code */
+        var $formatter6 = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Up',null,'white','forestgreen');";
+          uexpr "formatter.addRange('Down',null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table6,"allowHtml: true","reth-interface-status","","table","Table",$css,$formatter6);
+        }
+
+        <p>;
+        var $table7 = {
+          expr "['Redundancy Group','Pseudo Interface Name','Status'],";
+          expr "['" _ $interfaces/pseudo-if/redundancy-group-id _ "',";
+          expr "'" _ $interfaces/pseudo-if/name _ "',";
+          expr "'" _ $interfaces/pseudo-if/status _ "']";
+        }
+        /* formatter code */
+        var $formatter7 = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Up',null,'white','forestgreen');";
+          uexpr "formatter.addRange('Down',null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table7,"allowHtml: true","pseudo-interface-status","","table","Table",$css,$formatter7);
+        }
+
+        /* chassis alarms*/
+        <p>;
+        var $table8 = {
+          expr "['RE Name','Chassis Alarm Time','Class','Type','Chassis Alarm Description']";
+          for-each ($alarms/multi-routing-engine-item) {
+            for-each (alarm-information/alarm-detail) {
+              expr ",['" _ ../../re-name _ "',";
+              expr "'" _ alarm-time _ "',";
+              expr "'" _ alarm-class _ "',";
+              expr "'" _ alarm-type _ "',";
+              expr "'" _ alarm-description _ "']";
+            }
+          }
+        }
+
+        /* formatter code */
+        var $formatter8 = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Minor',null,'white','darkorange');";
+          uexpr "formatter.addRange('Major',null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table8,"allowHtml: true","chassis-alarms","","table","Table",$css,$formatter8);
+        }
+
+
+        /* system alarms*/
+        <p>;
+        var $table9 = {
+          expr "['RE Name','System Alarm Time','Class','Type','System Alarm Description']";
+          for-each ($sys-alarms/multi-routing-engine-item) {
+            for-each (alarm-information/alarm-detail) {
+              expr ",['" _ ../../re-name _ "',";
+              expr "'" _ alarm-time _ "',";
+              expr "'" _ alarm-class _ "',";
+              expr "'" _ alarm-type _ "',";
+              expr "'" _ alarm-description _ "']";
+            }
+          }
+        }
+
+        /* formatter code */
+        var $formatter9 = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Minor',null,'white','darkorange');";
+          uexpr "formatter.addRange('Major',null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table9,"allowHtml: true","system-alarms","","table","Table",$css,$formatter9);
+        }
+
+        <p>;
+        var $table10 = {
+          expr "['RE Name','Redundancy Mode Configured','Redundancy Mode Operational']";
+          for-each ($info-undoc/multi-routing-engine-item) {
+            for-each (chassis-cluster-information/chassis-cluster-redundancy-mode) {
+              expr ",['" _ ../../re-name _ "',";
+              expr "'" _ configured _ "',";
+              expr "'" _ operational _ "']";
+            }
+          }
+        }
+        <div> {
+          copy-of jspace:drawchart($table10,"allowHtml: true","cluster-information-undoc","","table","Table",$css);
+        }
+
+        <p>;
+        var $table11 = {
+          expr "['RE Name','Redundancy Group State Transition Event']";
+          for-each ($info-undoc/multi-routing-engine-item) {
+            for-each (chassis-cluster-information/redundancy-group-information-list/redundancy-group-information) {
+              for-each (redundancy-group-state-transition-events/redundancy-group-state-transition-event) {
+                expr ",['" _ ../../../../../re-name _ "',";
+                expr "'" _ . _ "']";
+              }
+            }
+          }
+        }
+        <div> {
+          copy-of jspace:drawchart($table11,"allowHtml: true","transition-event","","table","Table",$css);
+        }
+
+      }
+    }
+  }
+}
+
+/* draw googlechart */
+/* a function to draw a chart with the required parameters */
+<func:function name="jspace:drawchart">
+{
+  param $data;      /* chart data           */
+  param $options;   /* chart options        */
+  param $id;        /* div id               */
+  param $style;     /* div style            */
+  param $packages;  /* google chart package */
+  param $type;      /* google chart type    */
+  param $css;       /* css style sheet      */
+  param $formatter; /* formatter code       */
+
+  var $html = '<div id="' _ $id _ '" style="' _ $style _ '">';
+  var $jscript = {
+    uexpr '<script type="text/javascript" src="https://www.google.com/jsapi"></script>';
+    <script type="text/javascript"> {
+      uexpr 'google.load("visualization", "1", {packages:["' _ $packages _ '"]});';
+      uexpr 'google.setOnLoadCallback(drawChart);';
+      uexpr 'function drawChart() {';
+      uexpr "  var data = google.visualization.arrayToDataTable([";
+      uexpr $data;
+      uexpr "  ]);";
+
+      uexpr "var cssClassNames = ";
+      uexpr $css;
+      uexpr ";";
+      uexpr "  var options = {";
+      uexpr $options;
+      uexpr " ,'allowHtml': true, 'cssClassNames': cssClassNames };";
+      uexpr "  var chart = new google.visualization." _ $type _ "(document.getElementById('" _ $id _ "'));";
+      if ($formatter != "") {
+        copy-of $formatter;
+      }
+      uexpr "  chart.draw(data, options);";
+      uexpr "}";
+    }
+  }
+  var $draw = {
+    <script type="text/javascript"> {
+      uexpr "var iframe = document.createElement('iframe');";
+      uexpr "var html = '<head>";
+      copy-of $jscript;
+      uexpr "</head><body>" _ $html _ "</body>';";
+      uexpr "iframe.src = 'data:text/html;charset=utf-8,' + encodeURI(html);";
+      uexpr "document.body.appendChild(iframe);";
+      uexpr "console.log('iframe.contentWindow =', iframe.contentWindow);";
+    }
+  }
+  <func:result select=" $draw ">;
+}
+
+
+template rpc_failure($rpc, $message = "Following errors occurred while trying to gather data: ") {
+  expr jcs:syslog("daemon.error", $message);
+  <p> {
+    uexpr $rpc _ " , " _ $message _ "<br>";
+    for-each ($rpc//xnm:error) {
+      expr jcs:syslog("daemon.error", message);
+      uexpr $rpc _ " , " _ $message _ "<br>";
+    }
+  }
+}
