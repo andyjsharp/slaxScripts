@@ -22,7 +22,6 @@ import "../import/junos.xsl";
  *  Room for improvement.
  *  1.  Core dumps <get-system-core-dumps>
  *  2.  Show system commits <get-commit-information>
- *  3.  Interface Monitoring information
  *  4.  Show chassis routing-engine <get-route-engine-information>
  *  5.  Show chassis fpc <get-fpc-information>
  *  6.  Piechart for show security idp status (Packet, Flow, Session statistics)
@@ -84,8 +83,6 @@ main <op-script-results> {
     if ($info-undoc/..//xnm:error) {
       call rpc_failure($rpc = info-undoc/.., $message = "Error collecting chassis cluster information undocumented");
     }
-
-    copy-of $info-undoc;
 
     expr jcs:close($local);
 
@@ -351,6 +348,30 @@ main <op-script-results> {
         }
         <div> {
           copy-of jspace:drawchart($table7,"allowHtml: true","pseudo-interface-status","","table","Table",$css,$formatter7);
+        }
+
+        <p>;
+        var $table7b = {
+          expr "['Monitoring Interface Name','Weight','Status','Redundancy Group']";
+          var $mon-count = count($interfaces/interface-monitoring/interface-name-for-monitoring);
+          mvar $count-mon = 0;
+          while ($count-mon != $mon-count) {
+            set $count-mon = $count-mon + 1;
+            expr ",['" _ $interfaces/interface-monitoring/interface-name-for-monitoring[$count-mon] _ "',";
+            expr "'" _ $interfaces/interface-monitoring/weight[$count-mon] _ "',";
+            expr "'" _ $interfaces/interface-monitoring/status[$count-mon] _ "',";
+            expr "'" _ $interfaces/interface-monitoring/redundancy-group-for-interface[$count-mon] _ "']";
+          }
+        }
+        /* formatter code */
+        var $formatter7b = {
+          uexpr "var formatter = new google.visualization.ColorFormat();";
+          uexpr "formatter.addRange('Up',null,'white','forestgreen');";
+          uexpr "formatter.addRange('Down',null,'white','red');";
+          uexpr "formatter.format(data, 2);"; /* 3rd column */
+        }
+        <div> {
+          copy-of jspace:drawchart($table7b,"allowHtml: true","interface-monitor","","table","Table",$css,$formatter7b);
         }
 
         /* chassis alarms*/
